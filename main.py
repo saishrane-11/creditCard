@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import IsolationForest
 import time
 import matplotlib.pyplot as plt
+from sklearn.ensemble import IsolationForest
+
+# Google Drive Authentication
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
@@ -36,21 +38,22 @@ df["Fraud_Prediction"] = iso_forest.predict(X)
 # Convert -1 to 1 (fraud), 1 to 0 (normal)
 df["Fraud_Prediction"] = df["Fraud_Prediction"].apply(lambda x: 1 if x == -1 else 0)
 
-# Save results locally
+# Print results
+print(df[["Class", "Fraud_Prediction"]].head(20))
+
+# Save processed results
 df.to_csv("processed_fraud_detection.csv", index=False)
 print("Results saved locally.")
 
-# Measure Processing Time vs. Dataset Size
+# Benchmark processing time
 sizes = [1000, 5000, 10000, 20000, 50000]
 times = []
 
 for size in sizes:
     subset = X[:size]
-
     start_time = time.time()
     iso_forest.fit(subset)  # Train model
     end_time = time.time()
-
     times.append(end_time - start_time)
 
 # Plot results
@@ -58,21 +61,27 @@ plt.plot(sizes, times, marker="o")
 plt.xlabel("Dataset Size")
 plt.ylabel("Processing Time (seconds)")
 plt.title("Processing Time vs. Dataset Size")
-plt.savefig("processing_time_plot.png")  # Save plot
+plt.savefig("processing_time_plot.png")  # Save the plot
+plt.show()
 print("Plot saved.")
 
-# 🔽 Upload to Google Drive 🔽
+# ---------- GOOGLE DRIVE UPLOAD ------------
 gauth = GoogleAuth()
-gauth.LocalWebserverAuth()  # Authenticate
+gauth.LocalWebserverAuth()  # Authenticate user
+
 drive = GoogleDrive(gauth)
 
-folder_id = "1Wbto677ngmBFo9fqsAhCUQbaw0Ydj1AF"  # Replace with your Google Drive Folder ID
+# Folder ID (replace with your actual Google Drive folder ID)
+FOLDER_ID = "1Wbto677ngmBFo9fqsAhCUQbaw0Ydj1AF"  # If empty, uploads to My Drive
 
-def upload_to_drive(file_name):
-    file_drive = drive.CreateFile({"title": file_name, "parents": [{"id": folder_id}]})
-    file_drive.SetContentFile(file_name)
-    file_drive.Upload()
-    print(f"{file_name} uploaded to Google Drive.")
+# Upload file
+file_metadata = {"title": "processing_time_plot.png"}
+if FOLDER_ID:
+    file_metadata["parents"] = [{"id": FOLDER_ID}]
 
-upload_to_drive("processed_fraud_detection.csv")
-upload_to_drive("processing_time_plot.png")
+file = drive.CreateFile(file_metadata)
+file.SetContentFile("processing_time_plot.png")
+file.Upload()
+
+print(f"File uploaded successfully! View at: https://drive.google.com/file/d/{file['id']}/view")
+
