@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import time
+import os
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import IsolationForest
@@ -62,14 +63,30 @@ plt.savefig("fraud_detection_plot.png")  # Save as PNG
 print("Plot saved successfully!")
 
 # =======================
-# Upload to Google Drive
+# Upload to Google Drive (Using Service Account)
 # =======================
 def upload_to_drive(filename):
     gauth = GoogleAuth()
-    gauth.LocalWebserverAuth()  # Authenticate
+    
+    # Authenticate using service account
+    gauth.LoadCredentialsFile("service_account.json")
+    if gauth.credentials is None:
+        gauth.LocalWebserverAuth()  # Not needed for service accounts
+    elif gauth.access_token_expired:
+        gauth.Refresh()
+    else:
+        gauth.Authorize()
+    
     drive = GoogleDrive(gauth)
 
-    file = drive.CreateFile({'title': filename})  # Upload file
+    # Folder ID (Set it if you want to upload to a specific folder)
+    folder_id = "YOUR_GOOGLE_DRIVE_FOLDER_ID"  # Replace with actual folder ID
+
+    file_metadata = {"title": filename}
+    if folder_id:
+        file_metadata["parents"] = [{"id": folder_id}]
+    
+    file = drive.CreateFile(file_metadata)
     file.SetContentFile(filename)
     file.Upload()
 
@@ -87,4 +104,3 @@ def home():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  # Render requires PORT variable
     app.run(host="0.0.0.0", port=port)
-
