@@ -4,6 +4,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import IsolationForest
 import time
 import matplotlib.pyplot as plt
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
 # Load dataset
 df = pd.read_csv("creditcard.csv")
@@ -34,10 +36,7 @@ df["Fraud_Prediction"] = iso_forest.predict(X)
 # Convert -1 to 1 (fraud), 1 to 0 (normal)
 df["Fraud_Prediction"] = df["Fraud_Prediction"].apply(lambda x: 1 if x == -1 else 0)
 
-# Print results
-print(df[["Class", "Fraud_Prediction"]].head(20))
-
-# Save results
+# Save results locally
 df.to_csv("processed_fraud_detection.csv", index=False)
 print("Results saved locally.")
 
@@ -60,4 +59,20 @@ plt.xlabel("Dataset Size")
 plt.ylabel("Processing Time (seconds)")
 plt.title("Processing Time vs. Dataset Size")
 plt.savefig("processing_time_plot.png")  # Save plot
-print("Plot saved as processing_time_plot.png.")
+print("Plot saved.")
+
+# 🔽 Upload to Google Drive 🔽
+gauth = GoogleAuth()
+gauth.LocalWebserverAuth()  # Authenticate
+drive = GoogleDrive(gauth)
+
+folder_id = "1Wbto677ngmBFo9fqsAhCUQbaw0Ydj1AF"  # Replace with your Google Drive Folder ID
+
+def upload_to_drive(file_name):
+    file_drive = drive.CreateFile({"title": file_name, "parents": [{"id": folder_id}]})
+    file_drive.SetContentFile(file_name)
+    file_drive.Upload()
+    print(f"{file_name} uploaded to Google Drive.")
+
+upload_to_drive("processed_fraud_detection.csv")
+upload_to_drive("processing_time_plot.png")
