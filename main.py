@@ -1,15 +1,17 @@
+
+import os
 import pandas as pd
 import numpy as np
 import time
-import os
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import IsolationForest
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
 from flask import Flask
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
-# Initialize Flask app (for Render deployment)
+# Initialize Flask app (for deployment)
 app = Flask(__name__)
 
 # Load dataset
@@ -37,7 +39,7 @@ df["Fraud_Prediction"] = iso_forest.predict(X)
 # Convert -1 to 1 (fraud), 1 to 0 (normal)
 df["Fraud_Prediction"] = df["Fraud_Prediction"].apply(lambda x: 1 if x == -1 else 0)
 
-# Save results
+# Save processed data
 df.to_csv("processed_fraud_detection.csv", index=False)
 
 # Measure processing time for different dataset sizes
@@ -66,40 +68,31 @@ print("Plot saved successfully!")
 # Upload to Google Drive (Using Service Account)
 # =======================
 def upload_to_drive(filename):
-    gauth = GoogleAuth()
-    
-    # Authenticate using service account
-    gauth.LoadCredentialsFile("service_account.json")
-    if gauth.credentials is None:
-        gauth.LocalWebserverAuth()  # Not needed for service accounts
-    elif gauth.access_token_expired:
-        gauth.Refresh()
-    else:
-        gauth.Authorize()
-    
-    drive = GoogleDrive(gauth)
+    SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+    SERVICE_ACCOUNT_FILE = "service_account.json"  # Ensure this file is present
 
-    # Folder ID (Set it if you want to upload to a specific folder)
-    folder_id = "YOUR_GOOGLE_DRIVE_FOLDER_ID"  # Replace with actual folder ID
+    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    service = build("drive", "v3", credentials=creds)
 
-    file_metadata = {"title": filename}
-    if folder_id:
-        file_metadata["parents"] = [{"id": folder_id}]
-    
-    file = drive.CreateFile(file_metadata)
-    file.SetContentFile(filename)
-    file.Upload()
+    folder_id = "1Wbto677ngmBFo9fqsAhCUQbaw0Ydj1AF"  # Replace with your Google Drive folder ID
 
-    print(f"Uploaded {filename} to Google Drive!")
+    file_metadata = {
+        "name": filename,
+        "parents": [folder_id] if folder_id else []
+    }
+    media = MediaFileUpload(filename, mimetype="image/png")
+    file = service.files().create(body=file_metadata, media_body=media, fields="id").execute()
+
+    print(f"Uploaded {filename} to Google Drive with File ID: {file.get('id')}")
 
 upload_to_drive("fraud_detection_plot.png")
 
 # =======================
-# Flask Route (Render)
+# Flask Route (For Render Deployment)
 # =======================
 @app.route("/")
 def home():
-    return "Fraud detection model is running and files are uploaded to Google Drive!"
+    return "Fraud detection model is running, and files are uploaded to Google Drive!"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  # Render requires PORT variable
