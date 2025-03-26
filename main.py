@@ -85,4 +85,6 @@ def home():
     return "Fraud detection model is running and files are uploaded to Google Drive!"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)  # Port for Render Deployment
+    port = int(os.environ.get("PORT", 10000))  # Render requires PORT variable
+    app.run(host="0.0.0.0", port=port)
+
